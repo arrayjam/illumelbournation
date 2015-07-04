@@ -13,15 +13,26 @@ body {
   font-family: 'Lato', sans-serif;
 }
 
-.pouch {
+.page {
   overflow: auto;
   height: 100%;
   position: relative;
+}
+
+.pouch {
   .pouch-header {
     height: 200px;
     background: linear-gradient(rgba(0, 0, 0, 0.15), rgba(0, 0, 0, 0.15)), url("/img/pouch-header.png");
     background-size: cover;
     color: white;
+
+    .map-icon {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      height: 23px;
+      cursor: pointer;
+    }
 
     .pouch-header-content {
       padding: 20px;
@@ -211,7 +222,52 @@ body {
       margin-bottom: 10px;
     }
   }
+}
 
+.welcome {
+  .welcome-image {
+    width: 475px;
+    left: -56px;
+    position: absolute;
+  }
+
+  .welcome-text {
+    color: black;
+    font-size: 15px;
+    position: absolute;
+    top: 440px;
+    width: 100%;
+    text-align: center;
+  }
+
+  .welcome-start {
+    background: #967dd9;
+    color: white;
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 60px;
+    line-height: 60px;
+    text-align: center;
+    font-size: 14px;
+    transition: background-color 0.25s;
+    &:hover {
+      cursor: pointer;
+      background-color: #7752db;
+    }
+  }
+}
+
+.map-screen {
+  background: red;
+  .pouch-icon {
+    width: 30px;
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    cursor: pointer;
+  }
 }
 
 

@@ -87,7 +87,9 @@ var App = React.createClass({
     POUCH: 0,
     LOADING: 1,
     FILTER: 2,
-    DETAIL: 3
+    DETAIL: 3,
+    WELCOME: 4,
+    MAP: 5
   },
 
   getInitialState: function() {
@@ -122,8 +124,7 @@ var App = React.createClass({
           pointsOfInterest: newPlaces,
           filter: filter,
           // TODO(yuri): Remove
-          selectedPounchIndex: 0,
-          screen: this.states.DETAIL
+          screen: this.states.MAP
           // screen: this.states.POUCH
         });
       }.bind(this));
@@ -156,6 +157,12 @@ var App = React.createClass({
     });
   },
 
+  switchToMapScreen: function() {
+    this.setState({
+      screen: this.states.MAP
+    });
+  },
+
   selectPouchItem: function(pouchIndex) {
     this.setState({
       selectedPouchIndex: pouchIndex,
@@ -173,12 +180,20 @@ var App = React.createClass({
 
   render: function() {
     switch(this.state.screen) {
+      case this.states.WELCOME: return (
+        <Welcome onMapScreen={this.switchToMapScreen} />
+      );
+      case this.states.MAP: return (
+        <ExploreMap
+          onPouchScreen={this.switchToPouchScreen} />
+      );
       case this.states.POUCH: return (
         <Pouch
           visitedCoords={this.state.visitedCoords}
           pointsOfInterest={this.state.pointsOfInterest}
           onFilterScreen={this.switchToFilterScreen}
           onPouchItemSelection={this.selectPouchItem}
+          onMapScreen={this.switchToMapScreen}
           filter={this.state.filter} />
       );
       case this.states.FILTER: return (
@@ -198,8 +213,31 @@ var App = React.createClass({
   }
 });
 
-var PouchDetail = React.createClass({
+var ExploreMap = React.createClass({
+  render: function() {
+    return (
+      <div className="page map-screen">
+        <img className="pouch-icon" src="/img/pouch-icon.png" onClick={this.props.onPouchScreen} />
 
+
+      </div>
+    );
+  }
+});
+
+var Welcome = React.createClass({
+  render: function() {
+    return (
+      <div className="page welcome">
+        <img className="welcome-image" src="/img/welcome.png" />
+        <div className="welcome-text">Start walking to illuminate<br />parts of Melbourne.</div>
+        <div className="welcome-start" onClick={this.props.onMapScreen}>Got it!</div>
+      </div>
+    );
+  }
+});
+
+var PouchDetail = React.createClass({
   render: function() {
     var markdownToHTML = function(markdown) {
       return {__html: md.render(markdown)};
@@ -208,7 +246,7 @@ var PouchDetail = React.createClass({
     var item = this.props.pouchItem;
     var pouchHeaderClassname = classNames("pouch-header", "pouch-detail-header", item.type);
     return (
-      <div className="pouch pouch-detail">
+      <div className="page pouch pouch-detail">
         <div className={pouchHeaderClassname}>
           <img src="/img/check.png" className="pouch-header-back" onClick={this.props.onPouchScreen} />
           <div className="pouch-header-content pouch-detail-header-content">
@@ -218,7 +256,6 @@ var PouchDetail = React.createClass({
           <div className="pouch-detail-item-type">{item.category}</div>
           <div className="pouch-detail-item-name">{item.name}</div>
           <div className="pouch-detail-item-content" dangerouslySetInnerHTML={markdownToHTML(item.description)} />
-
         </div>
       </div>
     );
@@ -248,7 +285,7 @@ var PouchFilter = React.createClass({
     }.bind(this)).toList();
 
     return (
-      <div className="pouch pouch-filter">
+      <div className="page pouch pouch-filter">
         <div className="pouch-header pouch-filter-header">
           <img src="/img/check.png" className="pouch-header-back" onClick={this.props.onPouchScreen} />
           <div className="pouch-header-content pouch-filter-header-content">
@@ -286,8 +323,9 @@ var Pouch = React.createClass({
 
     console.log(this.props.filter.toJSON());
     return (
-      <div className="pouch">
+      <div className="page pouch">
         <div className="pouch-header">
+          <img className="map-icon" src="/img/close.png" onClick={this.props.onMapScreen} />
           <div className="pouch-header-content">
             <div className="pouch-header-title">Your pouch</div>
             <div className="pouch-header-count"><strong>{pouchPlaces.size}</strong> of <strong>{filteredPlaces.size}</strong> bits of Melbourne discovered</div>
