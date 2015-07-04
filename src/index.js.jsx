@@ -5,6 +5,9 @@ var React = require("react/addons"),
     queue = require("queue-async"),
     d3 = require("d3");
 
+var Remarkable = require('remarkable');
+var md = new Remarkable({breaks: true});
+
 // require('mapbox.js');
 // var base = "http://Monyafeek.local:5044/",
 //   mapName = "What";
@@ -71,7 +74,7 @@ function getVisitedPlaces(visited, places) {
 
 function getPouchPlaces(visited, places, filter) {
   return getVisitedPlaces(visited, places).visitedPlaces.filter(function(place) {
-      return filter.get(place.type);
+      return filter.get(place.type).enabled;
   });
 }
 
@@ -90,7 +93,7 @@ var App = React.createClass({
   getInitialState: function() {
     return {
       screen: this.states.LOADING,
-      visitedCoords: Immutable.List([[144.95399951934814,-37.80008640557414],[144.94099617004395,-37.80944489940969],[144.94091033935547,-37.81887000955131],[144.9574327468872,-37.82375160792541],[144.96927738189697,-37.80964833175728],[144.96871948242188,-37.82232784175096],[144.97318267822266,-37.81642908929268]]),
+      visitedCoords: Immutable.List([[144.95399951934814,-37.80008640557414],[144.94099617004395,-37.80944489940969],[144.94091033935547,-37.81887000955131],[144.9574327468872,-37.82375160792541],[144.96927738189697,-37.80964833175728],[144.96871948242188,-37.82232784175096],[144.97318267822266,-37.81642908929268],[144.949622,-37.8988]]),
       pointsOfInterest: Immutable.List(),
       filter: Immutable.Map(),
       selectedPouchIndex: null
@@ -98,28 +101,29 @@ var App = React.createClass({
   },
 
   componentDidMount: function() {
-    d3.text("/data/files", function(err, files) {
+    d3.csv("/data/datasets.csv", function(err, files) {
       var q = queue(1);
-      var fileList = files.split("\n").filter(function(d) { return d.trim() !== ""; });
-      fileList.forEach(function(file) {
-        q.defer(d3.csv, "/data/" + file + ".csv");
+      files.forEach(function(file) {
+        q.defer(d3.csv, "/data/" + file.file_name + ".csv");
       });
 
       q.awaitAll(function(err, placeSetDetails) {
         var newPlaces = Immutable.List();
         var filter = Immutable.Map();
         placeSetDetails.forEach(function(placeSet, placeSetIndex) {
-          var type = fileList[placeSetIndex];
-          filter = filter.set(type, true);
+          var type = files[placeSetIndex];
+          filter = filter.set(type.file_name, {enabled: true, name: type.category_name});
           placeSet.forEach(function(place) {
-            newPlaces = newPlaces.push(this.processPlace(place, type));
+            newPlaces = newPlaces.push(this.processPlace(place, type.file_name));
           }.bind(this));
         }.bind(this));
 
         this.setState({
           pointsOfInterest: newPlaces,
           filter: filter,
-          screen: this.states.POUCH
+          screen: this.states.FILTER
+          // TODO(yuri): Remove
+          // screen: this.states.POUCH
         });
       }.bind(this));
     }.bind(this));
@@ -157,7 +161,11 @@ var App = React.createClass({
   },
 
   filterToggle: function(type) {
-    this.setState({ filter: this.state.filter.set(type, !this.state.filter.get(type)) });
+    var currentFilter = this.state.filter.get(type);
+    currentFilter.enabled = !currentFilter.enabled;
+    this.setState({
+      filter: this.state.filter.set(type, currentFilter)
+    });
   },
 
   render: function() {
@@ -188,12 +196,24 @@ var App = React.createClass({
 });
 
 var PouchDetail = React.createClass({
+
   render: function() {
+    var markdownToHTML = function(markdown) {
+      return {__html: md.render(markdown)};
+    };
+
+    var item = this.props.pouchItem;
+    console.log(item);
     return (
       <div>
         <div onClick={this.props.onPouchScreen}>To Index</div>
-        <div>{this.props.pouchItem.name}</div>
-        <div>{this.props.pouchItem.description}</div>
+        <div>{item.name}</div>
+        {
+          item.mediaURL.trim() !== "" ?
+            <img src={item.mediaURL} /> :
+            null
+        }
+        <div dangerouslySetInnerHTML={markdownToHTML(item.description)} />
       </div>
     );
   }
@@ -206,15 +226,30 @@ var PouchFilter = React.createClass({
 
   render: function() {
     var filterJSX = this.props.filter.map(function(value, key) {
+      var enabled = value.enabled;
+      var name = value.name;
+      var filterClassName = classNames("pouch-filter-item", key, {"enabled": enabled});
       return (
-        <div onClick={this.handleFilterUpdate.bind(this, key)}>{key}: {value ? "on" : "off"}</div>
+        <div className={filterClassName} key={key} onClick={this.handleFilterUpdate.bind(this, key)}>
+          <div className="pouch-filter-item-name">{name}</div>
+          {
+            enabled ?
+              <div className="pouch-filter-item-checkbox"><div className="glyphicon glyphicon-ok"></div></div> :
+              null
+          }
+        </div>
       );
     }.bind(this)).toList();
 
     return (
-      <div>
-        {filterJSX}
-        <div onClick={this.props.onPouchScreen}>Back</div>
+      <div className="pouch pouch-filter">
+        <div className="pouch-header pouch-filter-header">
+          <img src="/img/check.png" className="pouch-header-back" onClick={this.props.onPouchScreen} />
+          <div className="pouch-header-content pouch-filter-header-content">
+            <div className="pouch-header-title pouch-filter-header-title">Filter by interest</div>
+          </div>
+        </div>
+        <div className="pouch-filter-items">{filterJSX}</div>
       </div>
     );
   }
@@ -229,22 +264,34 @@ var Pouch = React.createClass({
     var pouchPlaces = getPouchPlaces(this.props.visitedCoords, this.props.pointsOfInterest, this.props.filter);
 
     var filteredPlaces = this.props.pointsOfInterest.filter(function(place) {
-      return this.props.filter.get(place.type);
+      return this.props.filter.get(place.type).enabled;
     }.bind(this));
 
     var placesJSX = pouchPlaces.map(function(place, index) {
+      var pouchClassItemClassName = classNames("pouch-item", place.type);
       return (
-        <div onClick={this.handlePouchItemSelection.bind(this, index)} key={place.name}>{place.name} - {place.description}</div>
+        <div className={pouchClassItemClassName} onClick={this.handlePouchItemSelection.bind(this, index)} key={place.name}>
+          <div className="pouch-item-checkbox"><div className="glyphicon glyphicon-ok"></div></div>
+          <div className="pouch-item-name">{place.name}</div>
+          <div className="pouch-item-chevron glyphicon glyphicon-chevron-right" />
+        </div>
       );
     }.bind(this));
 
     console.log(this.props.filter.toJSON());
     return (
-      <div>
-        <div className="pouch-title">Your pouch</div>
-        <div>{pouchPlaces.size} of {filteredPlaces.size} bits of Melbourne discovered</div>
-        <div onClick={this.props.onFilterScreen}>Filter</div>
-        <div className="pouch-items">{placesJSX}</div>
+      <div className="pouch">
+        <div className="pouch-header">
+          <div className="pouch-header-content">
+            <div className="pouch-header-title">Your pouch</div>
+            <div className="pouch-header-count"><strong>{pouchPlaces.size}</strong> of <strong>{filteredPlaces.size}</strong> bits of Melbourne discovered</div>
+          </div>
+        </div>
+        <div className="pouch-filter-button" onClick={this.props.onFilterScreen}><div className="glyphicon glyphicon-filter"></div></div>
+        <div className="pouch-dates">
+          <div className="pouch-date">TODAY</div>
+          <div className="pouch-items">{placesJSX}</div>
+        </div>
       </div>
     );
   }

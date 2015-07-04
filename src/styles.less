@@ -1,4 +1,5 @@
 @import "../node_modules/mapbox.js/theme/style.css";
+@import "../vendor/bootstrap/less/bootstrap.less";
 
 html, body {
   height: 100%;
@@ -7,5 +8,206 @@ html, body {
 
 body {
   width: 375px;
+  height: 700px;
+  overflow: auto;
+  font-family: 'Lato', sans-serif;
 }
 
+.pouch {
+  overflow: auto;
+  height: 100%;
+  position: relative;
+  .pouch-header {
+    height: 200px;
+    background: linear-gradient(rgba(0, 0, 0, 0.15), rgba(0, 0, 0, 0.15)), url("/img/pouch-header.png");
+    background-size: cover;
+    color: white;
+
+    .pouch-header-content {
+      padding: 20px;
+      top: 40px;
+      position: relative;
+
+      .pouch-header-title {
+        font-size: 35px;
+        font-weight: 300;
+        margin-bottom: 10px;
+      }
+
+      .pouch-header-count {
+        text-transform: uppercase;
+        font-size: 12px;
+      }
+    }
+  }
+
+  .pouch-filter-button {
+    position: absolute;
+    right: 20px;
+    width: 70px;
+    height: 70px;
+    margin-top: -35px;
+    background: #b9a8e6;
+    border-radius: 999em;
+    cursor: pointer;
+    text-align: center;
+    font-size: 30px;
+    line-height: 70px;
+    color: white;
+  }
+
+  .pouch-dates {
+    background: #f8f8f8;
+    .pouch-date {
+      padding: 20px 15px;
+      color: #4f4f59;
+      font-size: 11px;
+    }
+    .pouch-item {
+      background: white;
+      border-left: 4px solid red;
+      position: relative;
+      padding: 20px 30px 20px 75px;
+      cursor: pointer;
+      border-bottom: 1px solid #e8e8e9;
+
+      &:hover {
+        background-color: black;
+        border-left-width: none;
+        .pouch-item-name,
+        .pouch-item-chevron {
+          color: white;
+        }
+        .pouch-item-checkbox {
+          color: white;
+        }
+      }
+
+      .pouch-item-checkbox {
+        position: absolute;
+        background-color: red;
+        left: 0px;
+        width: 40px;
+        height: 40px;
+        top: 10px;
+        left: 20px;
+        border-radius: 999em;
+        text-align: center;
+        font-size: 20px;
+        line-height: 40px;
+        color: white;
+      }
+
+      .pouch-item-name {
+        font-size: 15px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .pouch-item-chevron {
+        position: absolute;
+        right: 5px;
+        top: 25px;
+      }
+    }
+  }
+}
+
+
+.pouch-filter {
+  .pouch-filter-header {
+    height: 140px;
+    .pouch-header-back {
+      height: 32px;
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      cursor: pointer;
+    }
+
+    .pouch-filter-header-content {
+      top: 50px;
+    }
+  }
+  .pouch-filter-items {
+    -webkit-user-select: none;
+    .pouch-filter-item {
+      border-bottom: 1px solid #e8e8e9;
+      height: 130px;
+      width: 187px;
+      float: left;
+      pointer-events: all;
+      text-align: center;
+
+      .pouch-filter-item-name {
+        font-weight: 300;
+        color: #1d1d26;
+        font-size: 28px;
+        position: relative;
+        top: 40px;
+      }
+
+      &.enabled {
+        .pouch-filter-item-name {
+          color: white;
+          top: 30px;
+        }
+
+        .pouch-filter-item-checkbox {
+          position: relative;
+          top: 35px;
+          height: 20px;
+          width: 20px;
+          background-color: white;
+          font-size: 10px;
+          line-height: 20px;
+          text-align: center;
+          border-radius: 999em;
+          margin: 0 auto;
+        }
+      }
+      &:hover {
+        cursor: pointer;
+      }
+      &:nth-child(2n - 1) {
+        border-right: 1px solid #e8e8e9;
+      }
+    }
+  }
+}
+
+
+.override-widget-colors(abc_news, #fba953);
+.override-widget-colors(community_buildings, #52d0c2);
+.override-widget-colors(education_centres, #5adc54);
+.override-widget-colors(galleries_and_museums, #f17899);
+.override-widget-colors(indigenous_heritage, #d6d851);
+.override-widget-colors(no_smoking_areas, #e2b854);
+.override-widget-colors(parks_and_gardens, #dd8edd);
+.override-widget-colors(places_of_worship, #ec56e9);
+.override-widget-colors(public_memorials_and_sculptures, #ddbbd3);
+.override-widget-colors(sports, #aadd9b);
+.override-widget-colors(theatres_and_cinemas, #9cdac1);
+.override-widget-colors(transport, #8acde8);
+
+.override-widget-colors(@theme, @color) {
+  .@{theme} {
+    &.pouch-item {
+      border-left-color: @color !important;
+      &:hover {
+        background-color: @color !important;
+      }
+      .pouch-item-checkbox {
+        background-color: @color !important;
+      }
+    }
+
+    &.pouch-filter-item.enabled {
+      background-color: @color;
+      .pouch-filter-item-checkbox {
+        color: @color;
+      }
+    }
+  }
+}

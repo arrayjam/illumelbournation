@@ -1,0 +1,11 @@
+Copy:
+
+For GovHack 2015 we decided to encourage Melbourne's citizens and visitors to expore all it has to offer.
+PROJECTNAME is a webapp that you can run on your mobile device or computer.
+It uses your location to determine if you have visited any of the several hundred locations of interest we have collected from open data.
+We believe this project will be successful at educating users where traditional approaches fail.
+Other web apps function as simple directories that you only ever visit to answer very specific questions.
+Instead of that, PROJECTNAME uses game mechanics to taps into its users' drive to explore and collect.
+
+We have used several datasets to generate our points of interest. These were then divided into 12 categories.
+The three that we are most happy to be able to include are: current and historically significant Aboriginal sites, official no smoking areas and ABC news 
