@@ -62,16 +62,18 @@ body {
       padding: 20px 15px;
       color: #4f4f59;
       font-size: 11px;
+      border-right: 1px solid #e8e8e9;
     }
     .pouch-item {
       background: white;
       border-left: 4px solid red;
       position: relative;
       padding: 20px 30px 20px 75px;
-      cursor: pointer;
       border-bottom: 1px solid #e8e8e9;
+      border-right: 1px solid #e8e8e9;
 
       &:hover {
+        cursor: pointer;
         background-color: black;
         border-left-width: none;
         .pouch-item-name,
@@ -134,11 +136,13 @@ body {
     -webkit-user-select: none;
     .pouch-filter-item {
       border-bottom: 1px solid #e8e8e9;
+      border-right: 1px solid #e8e8e9;
       height: 130px;
       width: 187px;
       float: left;
       pointer-events: all;
       text-align: center;
+      transition: background-color 0.25s;
 
       .pouch-filter-item-name {
         font-weight: 300;
@@ -146,6 +150,7 @@ body {
         font-size: 28px;
         position: relative;
         top: 40px;
+        transition: top 0.25s, color 0.15s;
       }
 
       &.enabled {
@@ -170,11 +175,43 @@ body {
       &:hover {
         cursor: pointer;
       }
-      &:nth-child(2n - 1) {
-        border-right: 1px solid #e8e8e9;
-      }
     }
   }
+}
+
+.pouch-detail {
+  .pouch-detail-header {
+    height: 250px;
+    .pouch-header-back {
+      height: 32px;
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      cursor: pointer;
+    }
+
+    .pouch-detail-header-content {
+      top: 50px;
+    }
+  }
+
+  .pouch-detail-item {
+    padding: 20px;
+    .pouch-detail-item-type {
+      color: #4f4f59;
+      margin: 20px 0 10px;
+      font-size: 11px;
+      text-transform: uppercase;
+    }
+
+    .pouch-detail-item-name {
+      font-weight: 300;
+      color: #1d1d26;
+      font-size: 28px;
+      margin-bottom: 10px;
+    }
+  }
+
 }
 
 

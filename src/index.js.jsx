@@ -114,15 +114,16 @@ var App = React.createClass({
           var type = files[placeSetIndex];
           filter = filter.set(type.file_name, {enabled: true, name: type.category_name});
           placeSet.forEach(function(place) {
-            newPlaces = newPlaces.push(this.processPlace(place, type.file_name));
+            newPlaces = newPlaces.push(this.processPlace(place, type));
           }.bind(this));
         }.bind(this));
 
         this.setState({
           pointsOfInterest: newPlaces,
           filter: filter,
-          screen: this.states.FILTER
           // TODO(yuri): Remove
+          selectedPounchIndex: 0,
+          screen: this.states.DETAIL
           // screen: this.states.POUCH
         });
       }.bind(this));
@@ -136,7 +137,9 @@ var App = React.createClass({
       description: place.description,
       datasetID: place.datasetID,
       mediaURL: place.mediaURL,
-      type: type
+      type: type.file_name,
+      category: type.category_name
+
     };
   },
 
@@ -203,17 +206,20 @@ var PouchDetail = React.createClass({
     };
 
     var item = this.props.pouchItem;
-    console.log(item);
+    var pouchHeaderClassname = classNames("pouch-header", "pouch-detail-header", item.type);
     return (
-      <div>
-        <div onClick={this.props.onPouchScreen}>To Index</div>
-        <div>{item.name}</div>
-        {
-          item.mediaURL.trim() !== "" ?
-            <img src={item.mediaURL} /> :
-            null
-        }
-        <div dangerouslySetInnerHTML={markdownToHTML(item.description)} />
+      <div className="pouch pouch-detail">
+        <div className={pouchHeaderClassname}>
+          <img src="/img/check.png" className="pouch-header-back" onClick={this.props.onPouchScreen} />
+          <div className="pouch-header-content pouch-detail-header-content">
+          </div>
+        </div>
+        <div className="pouch-detail-item">
+          <div className="pouch-detail-item-type">{item.category}</div>
+          <div className="pouch-detail-item-name">{item.name}</div>
+          <div className="pouch-detail-item-content" dangerouslySetInnerHTML={markdownToHTML(item.description)} />
+
+        </div>
       </div>
     );
   }
