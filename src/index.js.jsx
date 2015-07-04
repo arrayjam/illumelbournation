@@ -9,6 +9,8 @@ require('mapbox.js');
 console.log(L);
 var visitedCoords = Immutable.List();
 var pointsOfInterest = Immutable.List();
+var visitedPlaces = Immutable.List();
+var unvisitedPlaces = Immutable.List();
 var base = "http://Monyafeek.local:5044/",
   mapName = "What";
 d3.csv("/nsa_simple.csv", function(err, csv) {
@@ -34,14 +36,14 @@ d3.csv("/nsa_simple.csv", function(err, csv) {
 
 function clickedMap(event) {
   visitedCoords = visitedCoords.push(latlngToCoord(event.latlng));
-  getVisitedPlaces(visitedCoords, pointsOfInterest);
-  console.log(visitedCoords.toJSON());
+  var results = getVisitedPlaces(visitedCoords, pointsOfInterest);
+  visitedPlaces = results.visitedPlaces;
+  unvisitedPlaces = results.unvisitedPlaces;
+  console.log(visitedPlaces.size, unvisitedPlaces.size);
 }
 
 function getVisitedPlaces(visited, places) {
   var visitedPlaces = Immutable.List();
-  console.log("number of places", places.size)
-  console.log("number of visited points", visited.size)
   var thresholdDistance = 0.3;
 
   for(var placeIndex = 0; placeIndex < places.size; placeIndex++) {
@@ -50,7 +52,6 @@ function getVisitedPlaces(visited, places) {
       var visitedPoint = visited.get(visitedIndex);
       var distance = 6373 * d3.geo.distance(visitedPoint, place.coords);
       if(distance < thresholdDistance) {
-        // console.log("Visited ", place);
         visitedPlaces = visitedPlaces.push(place);
         break;
       }
@@ -64,9 +65,6 @@ function getVisitedPlaces(visited, places) {
       unvisitedPlaces = unvisitedPlaces.push(testPlace);
     }
   }
-
-  console.log("visitedPlaces", visitedPlaces);
-  console.log("unvisitedPlaces", unvisitedPlaces);
 
   return {
     visitedPlaces: visitedPlaces,
