@@ -3,44 +3,61 @@ var React = require("react/addons"),
     classNames = require("classnames"),
     Immutable = require("immutable"),
     queue = require("queue-async"),
+    bearing = require("turf-bearing"),
+    point = require("turf-point"),
+    featurecollection = require("turf-featurecollection"),
     d3 = require("d3");
 
 var Remarkable = require('remarkable');
 var md = new Remarkable({breaks: true});
 
-// require('mapbox.js');
-// var base = "http://Monyafeek.local:5044/",
-//   mapName = "What";
-// d3.csv("/nsa_simple.csv", function(err, csv) {
-//   d3.json(base + mapName + ".json", function(tilejson) {
-//     var southWest = L.latLng(tilejson.bounds[3], tilejson.bounds[0]),
-//       northEast = L.latLng(tilejson.bounds[1], tilejson.bounds[2]),
-//       bounds = L.latLngBounds(southWest, northEast);
+require('mapbox.js');
+L.RotatedMarker = L.Marker.extend({
+  options: { angle: 0 },
+  _setPos: function(pos) {
+    L.Marker.prototype._setPos.call(this, pos);
+    if (L.DomUtil.TRANSFORM) {
+      // use the CSS transform rule if available
+      this._icon.style[L.DomUtil.TRANSFORM] += ' rotate(' + this.options.angle + 'deg)';
+    } else if (L.Browser.ie) {
+      // fallback for IE6, IE7, IE8
+      var rad = this.options.angle * L.LatLng.DEG_TO_RAD,
+      costheta = Math.cos(rad),
+      sintheta = Math.sin(rad);
+      this._icon.style.filter += ' progid:DXImageTransform.Microsoft.Matrix(sizingMethod=\'auto expand\', M11=' +
+        costheta + ', M12=' + (-sintheta) + ', M21=' + sintheta + ', M22=' + costheta + ')';
+    }
+  }
+});
 
-//     // var map = L.mapbox.map(document.body, tilejson);
-//     // map.setView([-37.8136, 144.9631], 17);
-//     // map.setMaxBounds(bounds);
-//     // map.on("click", clickedMap);
-//     // var pointsOfInterest = Immutable.List();
-//     csv.forEach(function(row) {
-//       pointsOfInterest = pointsOfInterest.push({
-//         coords: [+row.longitude, +row.latitude],
-//         name: row.name
-//       });
-//     });
+L.rotatedMarker = function(pos, options) {
+  return new L.RotatedMarker(pos, options);
+};
 
-//     console.log(pointsOfInterest.toJSON());
-//   });
-// });
+var circleWithAngle = (function() {
+  var circle = d3.geo.circle();
 
-// function clickedMap(event) {
-//   visitedCoords = visitedCoords.push(latlngToCoord(event.latlng));
-//   var results = getVisitedPlaces(visitedCoords, pointsOfInterest);
-//   visitedPlaces = results.visitedPlaces;
-//   unvisitedPlaces = results.unvisitedPlaces;
-//   console.log(visitedPlaces.size, unvisitedPlaces.size);
-//   console.log(JSON.stringify(visitedCoords.toJSON()));
-// }
+  return function (origin, angle) {
+    return circle.precision(0.5).origin(origin).angle(angle)();
+  };
+})();
+
+function createNonOverlappingCircles(origin, angles) {
+  var circles = [];
+
+  circles.push(circleWithAngle(angles[0]));
+
+  for (var i = 1; i < angles.length; i++) {
+    var circleGeo = circleWithAngle(origin, angles[i]), // Generate a circle with the given angle
+        holeCircleGeo = circleWithAngle(origin, angles[i - 1]); // And a circle with a previous angle
+
+    // Holes in GeoJSON Polygons are specified in the coordinates array in the 1 to nth index in reverse winding order
+    circleGeo.coordinates.push(holeCircleGeo.coordinates[0].reverse());
+    circles.push(circleGeo);
+  }
+
+  return circles;
+}
 
 function getVisitedPlaces(visited, places) {
   var visitedPlaces = Immutable.List();
@@ -76,10 +93,6 @@ function getPouchPlaces(visited, places, filter) {
   return getVisitedPlaces(visited, places).visitedPlaces.filter(function(place) {
       return filter.get(place.type).enabled;
   });
-}
-
-function latlngToCoord(latlng) {
-  return [latlng.lng, latlng.lat];
 }
 
 var App = React.createClass({
@@ -213,18 +226,6 @@ var App = React.createClass({
   }
 });
 
-var ExploreMap = React.createClass({
-  render: function() {
-    return (
-      <div className="page map-screen">
-        <img className="pouch-icon" src="/img/pouch-icon.png" onClick={this.props.onPouchScreen} />
-
-
-      </div>
-    );
-  }
-});
-
 var Welcome = React.createClass({
   render: function() {
     return (
@@ -341,4 +342,161 @@ var Pouch = React.createClass({
   }
 });
 
-React.render(<App />, document.body);
+var ExploreMap = React.createClass({
+  shouldComponentUpdate: function() {
+    return false;
+  },
+
+  componentWillReceiveProps: function(newProps) {
+
+
+  },
+
+  setCurrentPosition: function(position) {
+    this._currentPosition = position;
+  },
+
+  getCurrentPosition: function() {
+    return this._currentPosition;
+  },
+
+  getCurrentll: function() {
+    return this.positionToll(this.getCurrentPosition());
+  },
+
+  positionToll: function(position) {
+    return L.latLng(position[1], position[0]);
+  },
+
+  llToPosition: function(ll) {
+    return [ll.lng, ll.lat];
+  },
+
+  componentDidMount: function() {
+    this._currentPosition = null;
+
+    var base = "http://Monyafeek.local:5044/",
+      mapName = "What";
+
+    d3.json(base + mapName + ".json", function(tilejson) {
+      // var southWest = L.latLng(tilejson.bounds[3], tilejson.bounds[0]),
+      //   northEast = L.latLng(tilejson.bounds[1], tilejson.bounds[2]);
+        // bounds = L.latLngBounds(southWest, northEast);
+
+      console.log(tilejson);
+      this.setCurrentPosition([144.9667, -37.8129]);
+      var currentll = this.getCurrentll();
+
+      var map = L.mapbox.map(this.refs.map.getDOMNode(), tilejson)
+        .setView(this.getCurrentll(), 17);
+
+      map.dragging.disable();
+      map.touchZoom.disable();
+      map.doubleClickZoom.disable();
+      map.scrollWheelZoom.disable();
+      map.zoomControl.removeFrom(map);
+
+      var currentLocationMarker = L.rotatedMarker(currentll, {
+        icon: L.divIcon({
+          className: 'label',
+          html: React.renderToStaticMarkup(
+            <div className="current-location-marker shadowed">
+              <div className="current-location-marker-circle" />
+              <span>80m</span>
+            </div>
+          ),
+          iconSize: [86, 86],
+          iconAnchor: [43, 43]
+        }),
+        draggable: true
+      });
+      currentLocationMarker.addTo(map);
+      map.on("mousemove", this.trackMouse);
+
+      this._currentLocationMarker = currentLocationMarker;
+      this._map = map;
+      this.maskPosition(this.getCurrentPosition());
+
+
+    }.bind(this));
+  },
+
+  maskPosition: function(position) {
+    var smallRadius = 8 / 6373;
+    var biggerRadius = 44 / 6373 * 1000;
+
+    var circles = createNonOverlappingCircles(position, [smallRadius, biggerRadius]);
+    var features = featurecollection(circles);
+
+    if(this._maskLayer) {
+      this._map.removeLayer(this._maskLayer);
+    }
+
+    var maskLayer = L.geoJson(features, {
+      style: function() {
+        return {
+          fillColor: "black",
+          fillOpacity: 0.8,
+          stroke: false
+        };
+      }
+    }).addTo(this._map);
+
+    this._maskLayer = maskLayer;
+  },
+
+  trackMouse: function(event) {
+    var mousePosition = this.llToPosition(event.latlng);
+    var mousePoint = point(mousePosition);
+
+    var currentPosition = this.getCurrentPosition();
+    var currentPoint = point(currentPosition);
+
+    var angle = bearing(currentPoint, mousePoint);
+    this._currentLocationMarker.options.angle = angle;
+    this._currentLocationMarker.setLatLng(this.getCurrentll());
+    // debugger
+
+
+
+    // debugger
+
+      // var direction = 0;
+      // setInterval(function() {
+      //   var ll = currentLocationMarker.getLatLng();
+      //   ll.lat += Math.cos(direction) / 100000;
+      //   ll.lng += Math.sin(direction) / 100000;
+      //   currentLocationMarker.options.angle = direction * (180 / Math.PI);
+      //   currentLocationMarker.setLatLng(ll);
+      //   direction += (Math.random() - 0.5) / 2;
+      // }, 1000);
+
+
+
+  },
+
+  render: function() {
+    return (
+      <div className="page map-screen">
+        <img className="pouch-icon" src="/img/pouch-icon.png" onClick={this.props.onPouchScreen} />
+        <div className="map-container" ref="map"/>
+      </div>
+    );
+  }
+
+// function clickedMap(event) {
+//   visitedCoords = visitedCoords.push(latlngToCoord(event.latlng));
+//   var results = getVisitedPlaces(visitedCoords, pointsOfInterest);
+//   visitedPlaces = results.visitedPlaces;
+//   unvisitedPlaces = results.unvisitedPlaces;
+//   console.log(visitedPlaces.size, unvisitedPlaces.size);
+//   console.log(JSON.stringify(visitedCoords.toJSON()));
+// }
+// function latlngToCoord(latlng) {
+//   return [latlng.lng, latlng.lat];
+// }
+
+});
+
+
+React.render(<App />, document.getElementById("app"));
