@@ -10,7 +10,8 @@ var React = require("react/addons"),
     featurecollection = require("turf-featurecollection"),
     d3 = require("d3");
 
-var thresholdDistance = 0.15;
+var thresholdDistance = 0.05;
+var zoomLevel = 18;
 
 var Remarkable = require('remarkable');
 var md = new Remarkable({breaks: true});
@@ -118,7 +119,8 @@ var App = React.createClass({
   getInitialState: function() {
     return {
       screen: this.states.LOADING,
-      visitedCoords: Immutable.List([[144.95399951934814,-37.80008640557414],[144.94099617004395,-37.80944489940969],[144.94091033935547,-37.81887000955131],[144.9574327468872,-37.82375160792541],[144.96927738189697,-37.80964833175728],[144.96871948242188,-37.82232784175096],[144.97318267822266,-37.81642908929268],[144.949622,-37.8988]]),
+      // visitedCoords: Immutable.List([[144.95399951934814,-37.80008640557414],[144.94099617004395,-37.80944489940969],[144.94091033935547,-37.81887000955131],[144.9574327468872,-37.82375160792541],[144.96927738189697,-37.80964833175728],[144.96871948242188,-37.82232784175096],[144.97318267822266,-37.81642908929268],[144.949622,-37.8988]]),
+      visitedCoords: Immutable.List([[144.9667, -37.8129]]),
       pointsOfInterest: Immutable.List(),
       filter: Immutable.Map(),
       selectedPouchIndex: null
@@ -201,6 +203,18 @@ var App = React.createClass({
     });
   },
 
+  handleNewPoint: function(point) {
+    this.setState({
+      visitedCoords: this.state.visitedCoords.push(point)
+    });
+  },
+
+  filteredPointsOfInterest: function() {
+    return this.state.pointsOfInterest.filter(function(place) {
+      return this.state.filter.get(place.type).enabled;
+    }.bind(this));
+  },
+
   render: function() {
     switch(this.state.screen) {
       case this.states.WELCOME: return (
@@ -208,13 +222,16 @@ var App = React.createClass({
       );
       case this.states.MAP: return (
         <ExploreMap
-          pointsOfInterest={this.state.pointsOfInterest}
+          initialPosition={this.state.visitedCoords.last()}
+          onNewPoint={this.handleNewPoint}
+          pointsOfInterest={this.filteredPointsOfInterest()}
           onPouchScreen={this.switchToPouchScreen} />
       );
       case this.states.POUCH: return (
         <Pouch
           visitedCoords={this.state.visitedCoords}
           pointsOfInterest={this.state.pointsOfInterest}
+          filteredPointsOfInterest={this.filteredPointsOfInterest()}
           onFilterScreen={this.switchToFilterScreen}
           onPouchItemSelection={this.selectPouchItem}
           onMapScreen={this.switchToMapScreen}
@@ -318,10 +335,6 @@ var Pouch = React.createClass({
   render: function() {
     var pouchPlaces = getPouchPlaces(this.props.visitedCoords, this.props.pointsOfInterest, this.props.filter);
 
-    var filteredPlaces = this.props.pointsOfInterest.filter(function(place) {
-      return this.props.filter.get(place.type).enabled;
-    }.bind(this));
-
     var placesJSX = pouchPlaces.map(function(place, index) {
       var pouchClassItemClassName = classNames("pouch-item", place.type);
       return (
@@ -340,7 +353,7 @@ var Pouch = React.createClass({
           <img className="map-icon" src="/img/close.png" onClick={this.props.onMapScreen} />
           <div className="pouch-header-content">
             <div className="pouch-header-title">Your pouch</div>
-            <div className="pouch-header-count"><strong>{pouchPlaces.size}</strong> of <strong>{filteredPlaces.size}</strong> bits of Melbourne discovered</div>
+            <div className="pouch-header-count"><strong>{pouchPlaces.size}</strong> of <strong>{this.props.filteredPointsOfInterest.size}</strong> bits of Melbourne discovered</div>
           </div>
         </div>
         <div className="pouch-filter-button" onClick={this.props.onFilterScreen}><div className="glyphicon glyphicon-filter"></div></div>
@@ -359,11 +372,13 @@ var ExploreMap = React.createClass({
   },
 
   componentWillReceiveProps: function(newProps) {
-
-
+    if(!newProps.pointsOfInterest.equals(this.props.pointsOfInterest)) {
+      this.addPointsOfInterest(newProps.pointsOfInterest);
+    }
   },
 
   setCurrentPosition: function(position) {
+    console.log("current position", position);
     this._currentPosition = position;
   },
 
@@ -392,10 +407,10 @@ var ExploreMap = React.createClass({
     d3.json(base + mapName + ".json", function(tilejson) {
       console.log(tilejson);
 
-      this.setCurrentPosition([144.9667, -37.8129]);
+      this.setCurrentPosition(this.props.initialPosition);
       var currentll = this.getCurrentll();
 
-      var map = L.mapbox.map(this.refs.map.getDOMNode(), tilejson).setView(this.getCurrentll(), 17);
+      var map = L.mapbox.map(this.refs.map.getDOMNode(), tilejson).setView(this.getCurrentll(), zoomLevel);
 
       map.dragging.disable();
       map.touchZoom.disable();
@@ -426,6 +441,7 @@ var ExploreMap = React.createClass({
       this.maskPosition(this.getCurrentPosition());
       map.on("click", this.handleMove);
       this.moveCurrentPosition(this.getCurrentPosition());
+      this.props.onNewPoint(this.getCurrentPosition());
     }.bind(this));
   },
 
@@ -460,9 +476,10 @@ var ExploreMap = React.createClass({
 
   moveCurrentPosition: function(currentPosition) {
     this.setCurrentPosition(currentPosition);
-    this._map.setView(this.getCurrentll(), 17);
+    this._map.setView(this.getCurrentll(), zoomLevel);
     this.maskPosition(currentPosition);
     this.nearestMarkerStuff(currentPosition);
+    this.props.onNewPoint(this.getCurrentPosition());
   },
 
   nearestMarkerStuff: function(position) {
@@ -495,7 +512,11 @@ var ExploreMap = React.createClass({
 
     this._pointsFeatureCollection = geoJSON;
 
-    L.geoJson(geoJSON, {
+    if(this._pointsLayer) {
+      this._map.removeLayer(this._pointsLayer);
+    }
+
+    this._pointsLayer = L.geoJson(geoJSON, {
       pointToLayer: function(feature, latlng) {
         return L.circleMarker(latlng, {
           radius: 8,
