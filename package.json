@@ -21,6 +21,7 @@
     "turf-bearing": "^1.0.1",
     "turf-distance": "^1.0.1",
     "turf-featurecollection": "^1.0.1",
+    "turf-nearest": "^1.0.2",
     "turf-point": "^2.0.1",
     "underscore": "^1.8.3",
     "vinyl-buffer": "^1.0.0",

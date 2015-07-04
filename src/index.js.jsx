@@ -5,20 +5,27 @@ var React = require("react/addons"),
     queue = require("queue-async"),
     bearing = require("turf-bearing"),
     point = require("turf-point"),
+    nearest = require("turf-nearest"),
+    distance = require("turf-distance"),
     featurecollection = require("turf-featurecollection"),
     d3 = require("d3");
+
+var thresholdDistance = 0.15;
 
 var Remarkable = require('remarkable');
 var md = new Remarkable({breaks: true});
 
 require('mapbox.js');
 L.RotatedMarker = L.Marker.extend({
-  options: { angle: 0 },
+  options: { angle: 0, distance: "0m" },
   _setPos: function(pos) {
     L.Marker.prototype._setPos.call(this, pos);
+    var distanceNode = d3.select(this._icon).select(".current-location-marker-distance").node();
+    distanceNode.innerHTML = this.options.distance;
     if (L.DomUtil.TRANSFORM) {
       // use the CSS transform rule if available
       this._icon.style[L.DomUtil.TRANSFORM] += ' rotate(' + this.options.angle + 'deg)';
+      distanceNode.style[L.DomUtil.TRANSFORM] = ' rotate(' + (-this.options.angle) + 'deg)';
     } else if (L.Browser.ie) {
       // fallback for IE6, IE7, IE8
       var rad = this.options.angle * L.LatLng.DEG_TO_RAD,
@@ -33,6 +40,10 @@ L.RotatedMarker = L.Marker.extend({
 L.rotatedMarker = function(pos, options) {
   return new L.RotatedMarker(pos, options);
 };
+
+function metersToDegrees(meters) {
+  return meters / 1000 / 6373 * 57.2957795;
+}
 
 var circleWithAngle = (function() {
   var circle = d3.geo.circle();
@@ -61,7 +72,6 @@ function createNonOverlappingCircles(origin, angles) {
 
 function getVisitedPlaces(visited, places) {
   var visitedPlaces = Immutable.List();
-  var thresholdDistance = 0.2;
 
   for(var placeIndex = 0; placeIndex < places.size; placeIndex++) {
     for(var visitedIndex = 0; visitedIndex < visited.size; visitedIndex++) {
@@ -198,6 +208,7 @@ var App = React.createClass({
       );
       case this.states.MAP: return (
         <ExploreMap
+          pointsOfInterest={this.state.pointsOfInterest}
           onPouchScreen={this.switchToPouchScreen} />
       );
       case this.states.POUCH: return (
@@ -379,16 +390,12 @@ var ExploreMap = React.createClass({
       mapName = "What";
 
     d3.json(base + mapName + ".json", function(tilejson) {
-      // var southWest = L.latLng(tilejson.bounds[3], tilejson.bounds[0]),
-      //   northEast = L.latLng(tilejson.bounds[1], tilejson.bounds[2]);
-        // bounds = L.latLngBounds(southWest, northEast);
-
       console.log(tilejson);
+
       this.setCurrentPosition([144.9667, -37.8129]);
       var currentll = this.getCurrentll();
 
-      var map = L.mapbox.map(this.refs.map.getDOMNode(), tilejson)
-        .setView(this.getCurrentll(), 17);
+      var map = L.mapbox.map(this.refs.map.getDOMNode(), tilejson).setView(this.getCurrentll(), 17);
 
       map.dragging.disable();
       map.touchZoom.disable();
@@ -398,11 +405,11 @@ var ExploreMap = React.createClass({
 
       var currentLocationMarker = L.rotatedMarker(currentll, {
         icon: L.divIcon({
-          className: 'label',
+          className: "current-location-marker-container",
           html: React.renderToStaticMarkup(
             <div className="current-location-marker shadowed">
               <div className="current-location-marker-circle" />
-              <span>80m</span>
+              <span className="current-location-marker-distance">80m</span>
             </div>
           ),
           iconSize: [86, 86],
@@ -411,19 +418,20 @@ var ExploreMap = React.createClass({
         draggable: true
       });
       currentLocationMarker.addTo(map);
-      map.on("mousemove", this.trackMouse);
+      // map.on("mousemove", this.trackMouse);
 
       this._currentLocationMarker = currentLocationMarker;
       this._map = map;
+      this.addPointsOfInterest(this.props.pointsOfInterest);
       this.maskPosition(this.getCurrentPosition());
-
-
+      map.on("click", this.handleMove);
+      this.moveCurrentPosition(this.getCurrentPosition());
     }.bind(this));
   },
 
   maskPosition: function(position) {
-    var smallRadius = 8 / 6373;
-    var biggerRadius = 44 / 6373 * 1000;
+    var smallRadius = metersToDegrees(thresholdDistance * 1000);
+    var biggerRadius = metersToDegrees(100 * 1000);
 
     var circles = createNonOverlappingCircles(position, [smallRadius, biggerRadius]);
     var features = featurecollection(circles);
@@ -437,6 +445,7 @@ var ExploreMap = React.createClass({
         return {
           fillColor: "black",
           fillOpacity: 0.8,
+          clickable: false,
           stroke: false
         };
       }
@@ -445,34 +454,57 @@ var ExploreMap = React.createClass({
     this._maskLayer = maskLayer;
   },
 
-  trackMouse: function(event) {
-    var mousePosition = this.llToPosition(event.latlng);
-    var mousePoint = point(mousePosition);
+  handleMove: function(event) {
+    this.moveCurrentPosition(this.llToPosition(event.latlng));
+  },
 
-    var currentPosition = this.getCurrentPosition();
-    var currentPoint = point(currentPosition);
+  moveCurrentPosition: function(currentPosition) {
+    this.setCurrentPosition(currentPosition);
+    this._map.setView(this.getCurrentll(), 17);
+    this.maskPosition(currentPosition);
+    this.nearestMarkerStuff(currentPosition);
+  },
 
-    var angle = bearing(currentPoint, mousePoint);
+  nearestMarkerStuff: function(position) {
+    var currentPoint = point(position);
+    var nearestPoint = nearest(currentPoint, this._pointsFeatureCollection);
+    var angle = bearing(currentPoint, nearestPoint);
+    var distanceToPoint = distance(currentPoint, nearestPoint) * 1000;
     this._currentLocationMarker.options.angle = angle;
+    this._currentLocationMarker.options.distance = distanceToPoint.toFixed() + "m";
     this._currentLocationMarker.setLatLng(this.getCurrentll());
-    // debugger
+  },
 
+  // trackMouse: function(event) {
+  //   var mousePosition = this.llToPosition(event.latlng);
+  //   var mousePoint = point(mousePosition);
 
+  //   var currentPosition = this.getCurrentPosition();
+  //   var currentPoint = point(currentPosition);
 
-    // debugger
+  //   var angle = bearing(currentPoint, mousePoint);
+  //   this._currentLocationMarker.options.angle = angle;
+  //   this._currentLocationMarker.setLatLng(this.getCurrentll());
+  // },
 
-      // var direction = 0;
-      // setInterval(function() {
-      //   var ll = currentLocationMarker.getLatLng();
-      //   ll.lat += Math.cos(direction) / 100000;
-      //   ll.lng += Math.sin(direction) / 100000;
-      //   currentLocationMarker.options.angle = direction * (180 / Math.PI);
-      //   currentLocationMarker.setLatLng(ll);
-      //   direction += (Math.random() - 0.5) / 2;
-      // }, 1000);
+  addPointsOfInterest: function(places) {
+    console.log(places.toJSON());
+    var geoJSON = featurecollection(places.map(function(place) {
+      return point(place.coords, { type: place.type });
+    }).toJS());
 
+    this._pointsFeatureCollection = geoJSON;
 
-
+    L.geoJson(geoJSON, {
+      pointToLayer: function(feature, latlng) {
+        return L.circleMarker(latlng, {
+          radius: 8,
+          fillColor: colorMap[feature.properties.type],
+          stroke: false,
+          fillOpacity: 1
+        });
+      }
+    }).addTo(this._map);
   },
 
   render: function() {
@@ -497,6 +529,21 @@ var ExploreMap = React.createClass({
 // }
 
 });
+
+var colorMap = {
+  abc_news: "#fba953",
+  community_buildings: "#52d0c2",
+  education_centres: "#5adc54",
+  galleries_and_museums: "#f17899",
+  indigenous_heritage: "#d6d851",
+  no_smoking_areas: "#e2b854",
+  parks_and_gardens: "#dd8edd",
+  places_of_worship: "#ec56e9",
+  public_memorials_and_sculptures: "#ddbbd3",
+  sports: "#aadd9b",
+  theatres_and_cinemas: "#9cdac1",
+  transport: "#8acde8"
+};
 
 
 React.render(<App />, document.getElementById("app"));

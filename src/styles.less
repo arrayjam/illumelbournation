@@ -275,19 +275,30 @@ body {
     height: 100%;
   }
 
-  .current-location-marker {
-    background: url("/img/marker-hat.png");
-    background-size: 86px 86px;
-    width: 86px;
-    height: 86px;
-    .current-location-marker-circle {
-      width: 68px;
-      height: 68px;
-      background: white;
-      border-radius: 999em;
-      left: 9px;
-      top: 9px;
-      position: relative;
+  .current-location-marker-container {
+    .current-location-marker {
+      background: url("/img/marker-hat.png");
+      background-size: 86px 86px;
+      width: 86px;
+      height: 86px;
+      .current-location-marker-circle {
+        width: 68px;
+        height: 68px;
+        background: white;
+        border-radius: 999em;
+        left: 9px;
+        top: 9px;
+        position: relative;
+      }
+
+      .current-location-marker-distance {
+        color: black;
+        position: absolute;
+        top: 30px;
+        font-size: 14px;
+        width: 100%;
+        text-align: center;
+      }
     }
   }
 }
