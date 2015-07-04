@@ -71,7 +71,7 @@ function createNonOverlappingCircles(origin, angles) {
   return circles;
 }
 
-function getVisitedPlaces(visited, places) {
+function getVisitedPlaces(visited, places, filter) {
   var visitedPlaces = Immutable.List();
 
   for(var placeIndex = 0; placeIndex < places.size; placeIndex++) {
@@ -95,15 +95,14 @@ function getVisitedPlaces(visited, places) {
   }
 
   return {
-    visitedPlaces: visitedPlaces,
-    unvisitedPlaces: unvisitedPlaces
-  };
-}
-
-function getPouchPlaces(visited, places, filter) {
-  return getVisitedPlaces(visited, places).visitedPlaces.filter(function(place) {
+    visitedPlaces: visitedPlaces.filter(function(place) {
       return filter.get(place.type).enabled;
-  });
+    }),
+
+    unvisitedPlaces: unvisitedPlaces.filter(function(place) {
+      return filter.get(place.type).enabled;
+    }),
+  };
 }
 
 var App = React.createClass({
@@ -216,6 +215,7 @@ var App = React.createClass({
   },
 
   render: function() {
+    var placeBundle = getVisitedPlaces(this.state.visitedCoords, this.state.pointsOfInterest, this.state.filter);
     switch(this.state.screen) {
       case this.states.WELCOME: return (
         <Welcome onMapScreen={this.switchToMapScreen} />
@@ -225,6 +225,8 @@ var App = React.createClass({
           initialPosition={this.state.visitedCoords.last()}
           onNewPoint={this.handleNewPoint}
           pointsOfInterest={this.filteredPointsOfInterest()}
+          unvisitedPlaces={placeBundle.unvisitedPlaces}
+          visitedPlaces={placeBundle.visitedPlaces}
           onPouchScreen={this.switchToPouchScreen} />
       );
       case this.states.POUCH: return (
@@ -235,6 +237,7 @@ var App = React.createClass({
           onFilterScreen={this.switchToFilterScreen}
           onPouchItemSelection={this.selectPouchItem}
           onMapScreen={this.switchToMapScreen}
+          visitedPlaces={placeBundle.visitedPlaces}
           filter={this.state.filter} />
       );
       case this.states.FILTER: return (
@@ -245,7 +248,7 @@ var App = React.createClass({
       );
       case this.states.DETAIL: return (
         <PouchDetail
-          pouchItem={getPouchPlaces(this.state.visitedCoords, this.state.pointsOfInterest, this.state.filter).get(this.state.selectedPouchIndex)}
+          pouchItem={placeBundle.visitedPlaces.get(this.state.selectedPouchIndex)}
           onPouchScreen={this.switchToPouchScreen} />
       );
       case this.states.LOADING: return null;
@@ -333,9 +336,7 @@ var Pouch = React.createClass({
   },
 
   render: function() {
-    var pouchPlaces = getPouchPlaces(this.props.visitedCoords, this.props.pointsOfInterest, this.props.filter);
-
-    var placesJSX = pouchPlaces.map(function(place, index) {
+    var placesJSX = this.props.visitedPlaces.map(function(place, index) {
       var pouchClassItemClassName = classNames("pouch-item", place.type);
       return (
         <div className={pouchClassItemClassName} onClick={this.handlePouchItemSelection.bind(this, index)} key={place.name}>
@@ -353,7 +354,7 @@ var Pouch = React.createClass({
           <img className="map-icon" src="/img/close.png" onClick={this.props.onMapScreen} />
           <div className="pouch-header-content">
             <div className="pouch-header-title">Your pouch</div>
-            <div className="pouch-header-count"><strong>{pouchPlaces.size}</strong> of <strong>{this.props.filteredPointsOfInterest.size}</strong> bits of Melbourne discovered</div>
+            <div className="pouch-header-count"><strong>{this.props.visitedPlaces.size}</strong> of <strong>{this.props.filteredPointsOfInterest.size}</strong> bits of Melbourne discovered</div>
           </div>
         </div>
         <div className="pouch-filter-button" onClick={this.props.onFilterScreen}><div className="glyphicon glyphicon-filter"></div></div>
@@ -372,8 +373,10 @@ var ExploreMap = React.createClass({
   },
 
   componentWillReceiveProps: function(newProps) {
-    if(!newProps.pointsOfInterest.equals(this.props.pointsOfInterest)) {
-      this.addPointsOfInterest(newProps.pointsOfInterest);
+    if(!newProps.pointsOfInterest.equals(this.props.pointsOfInterest) ||
+       !newProps.unvisitedPlaces.equals(this.props.unvisitedPlaces) ||
+       !newProps.visitedPlaces.equals(this.props.visitedPlaces)) {
+      this.placesInit(newProps);
     }
   },
 
@@ -437,7 +440,7 @@ var ExploreMap = React.createClass({
 
       this._currentLocationMarker = currentLocationMarker;
       this._map = map;
-      this.addPointsOfInterest(this.props.pointsOfInterest);
+      this.placesInit(this.props);
       this.maskPosition(this.getCurrentPosition());
       map.on("click", this.handleMove);
       this.moveCurrentPosition(this.getCurrentPosition());
@@ -476,15 +479,15 @@ var ExploreMap = React.createClass({
 
   moveCurrentPosition: function(currentPosition) {
     this.setCurrentPosition(currentPosition);
+    this.props.onNewPoint(this.getCurrentPosition());
     this._map.setView(this.getCurrentll(), zoomLevel);
     this.maskPosition(currentPosition);
     this.nearestMarkerStuff(currentPosition);
-    this.props.onNewPoint(this.getCurrentPosition());
   },
 
   nearestMarkerStuff: function(position) {
     var currentPoint = point(position);
-    var nearestPoint = nearest(currentPoint, this._pointsFeatureCollection);
+    var nearestPoint = nearest(currentPoint, this._unvisitedFeatureCollection);
     var angle = bearing(currentPoint, nearestPoint);
     var distanceToPoint = distance(currentPoint, nearestPoint) * 1000;
     this._currentLocationMarker.options.angle = angle;
@@ -504,28 +507,38 @@ var ExploreMap = React.createClass({
   //   this._currentLocationMarker.setLatLng(this.getCurrentll());
   // },
 
-  addPointsOfInterest: function(places) {
-    console.log(places.toJSON());
-    var geoJSON = featurecollection(places.map(function(place) {
-      return point(place.coords, { type: place.type });
-    }).toJS());
-
-    this._pointsFeatureCollection = geoJSON;
+  placesInit: function(props) {
+    this._unvisitedFeatureCollection = this.pointsToCollection(props.unvisitedPlaces, true);
+    this._visitedFeatureCollection = this.pointsToCollection(props.visitedPlaces, false);
+    // this._pointsOfInterestFeatureCollection = this.pointsToCollection(props.pointsOfInterest, false);
 
     if(this._pointsLayer) {
-      this._map.removeLayer(this._pointsLayer);
+      this._pointsLayer.clearLayers();
     }
 
-    this._pointsLayer = L.geoJson(geoJSON, {
+    var options = {
       pointToLayer: function(feature, latlng) {
         return L.circleMarker(latlng, {
           radius: 8,
-          fillColor: colorMap[feature.properties.type],
+          fillColor: feature.properties.dull ? "black" : colorMap[feature.properties.type],
           stroke: false,
           fillOpacity: 1
         });
       }
-    }).addTo(this._map);
+    };
+    this._pointsLayer = L.geoJson(null, options);
+
+    this._pointsLayer.addData(this._unvisitedFeatureCollection);
+    this._pointsLayer.addData(this._visitedFeatureCollection);
+
+
+    this._map.addLayer(this._pointsLayer);
+  },
+
+  pointsToCollection(points, dull) {
+    return featurecollection(points.map(function(place) {
+      return point(place.coords, { type: place.type, dull: dull });
+    }).toJS());
   },
 
   render: function() {
