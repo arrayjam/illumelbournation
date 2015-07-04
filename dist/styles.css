@@ -1,6 +1,0 @@
-@import "../node_modules/mapbox.js/theme/style.css";
-html,
-body {
-  height: 100%;
-  background: red;
-}
