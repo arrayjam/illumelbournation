@@ -8,6 +8,7 @@ var React = require("react/addons"),
     nearest = require("turf-nearest"),
     distance = require("turf-distance"),
     featurecollection = require("turf-featurecollection"),
+    destination = require("turf-destination"),
     d3 = require("d3");
 
 var thresholdDistance = 0.05;
@@ -147,7 +148,7 @@ var App = React.createClass({
         var filter = Immutable.Map();
         placeSetDetails.forEach(function(placeSet, placeSetIndex) {
           var type = files[placeSetIndex];
-          filter = filter.set(type.file_name, {enabled: true, name: type.category_name});
+          filter = filter.set(type.file_name, {enabled: true, name: type.short_title});
           placeSet.forEach(function(place) {
             newPlaces = newPlaces.push(this.processPlace(place, type));
           }.bind(this));
@@ -157,7 +158,7 @@ var App = React.createClass({
           pointsOfInterest: newPlaces,
           filter: filter,
           // TODO(yuri): Remove
-          screen: this.states.MAP
+          screen: this.states.WELCOME
           // screen: this.states.POUCH
         });
       }.bind(this));
@@ -172,8 +173,8 @@ var App = React.createClass({
       datasetID: place.datasetID,
       mediaURL: place.mediaURL,
       type: type.file_name,
-      category: type.category_name
-
+      category: type.short_title,
+      long_category: type.long_title,
     };
   },
 
@@ -237,7 +238,7 @@ var App = React.createClass({
       case this.states.MAP: return (
         <div className="page">
           {
-            placeBundle.newlyFoundPlaces.map(function(place, placeIndex) {
+            placeBundle.newlyFoundPlaces.slice(0, 1).map(function(place, placeIndex) {
               return (
                 <FoundPlacePopup key={placeIndex}
                   place={place}
@@ -291,7 +292,10 @@ var FoundPlacePopup = React.createClass({
     return (
       <div className={foundPlacePopupClassname}>
         <div className="found-place-popup-header"></div>
-        <div className="found-place-popup-content">{place.category} discovered!</div>
+        <div className="found-place-popup-content">
+          <div className="found-place-popup-category"><strong>{place.long_category}</strong> discovered!</div>
+          <div className="found-place-popup-text">{place.name}</div>
+        </div>
         <div className="found-place-popup-buttons">
           <div className="found-place-popup-button found-place-popup-button-pouch" onClick={this.props.onPouchScreen}>See pouch</div>
           <div className="found-place-popup-button found-place-popup-button-done" onClick={this.props.onClearNewPlaces}>Done</div>
@@ -401,7 +405,7 @@ var Pouch = React.createClass({
             <div className="pouch-header-count"><strong>{this.props.visitedPlaces.size}</strong> of <strong>{this.props.filteredPointsOfInterest.size}</strong> bits of Melbourne discovered</div>
           </div>
         </div>
-        <div className="pouch-filter-button" onClick={this.props.onFilterScreen}><div className="glyphicon glyphicon-filter"></div></div>
+        <div className="pouch-filter-button" onClick={this.props.onFilterScreen}><img src="/img/filter.png" /></div>
         <div className="pouch-dates">
           <div className="pouch-date">TODAY</div>
           <div className="pouch-items">{placesJSX}</div>
@@ -448,7 +452,8 @@ var ExploreMap = React.createClass({
   componentDidMount: function() {
     this._currentPosition = null;
 
-    var base = "http://Monyafeek.local:5044/",
+    // var base = "http://Monyafeek.local:5044/",
+    var base = "http://valerian.nexiom.net:5987/",
       mapName = "What";
 
     d3.json(base + mapName + ".json", function(tilejson) {
@@ -470,7 +475,12 @@ var ExploreMap = React.createClass({
           className: "current-location-marker-container",
           html: React.renderToStaticMarkup(
             <div className="current-location-marker shadowed">
-              <div className="current-location-marker-circle" />
+              <div className="current-location-marker-outer-circle">
+                <div className="current-location-marker-color-circle">
+                  <div className="current-location-marker-inner-circle">
+                  </div>
+                </div>
+              </div>
               <span className="current-location-marker-distance">80m</span>
             </div>
           ),
@@ -507,7 +517,7 @@ var ExploreMap = React.createClass({
       style: function() {
         return {
           fillColor: "black",
-          fillOpacity: 0.8,
+          fillOpacity: 0.4,
           clickable: false,
           stroke: false
         };
@@ -521,17 +531,24 @@ var ExploreMap = React.createClass({
     this.moveCurrentPosition(this.llToPosition(event.latlng));
   },
 
-  moveCurrentPosition: function(currentPosition) {
-    this.setCurrentPosition(currentPosition);
+  moveCurrentPosition: function(newFarPosition) {
+    var currentPoint = point(this.getCurrentPosition());
+    var newFarPoint = point(newFarPosition);
+    var angle = bearing(currentPoint, newFarPoint);
+    var newPoint = destination(currentPoint, 0.02, angle, "kilometers");
+    var newPosition = newPoint.geometry.coordinates;
+
+    this.setCurrentPosition(newPosition);
     this.props.onNewPoint(this.getCurrentPosition());
     this._map.setView(this.getCurrentll(), zoomLevel);
-    this.maskPosition(currentPosition);
-    this.nearestMarkerStuff(currentPosition);
+    this.maskPosition(newPosition);
+    this.nearestMarkerStuff(newPosition);
   },
 
   nearestMarkerStuff: function(position) {
     var currentPoint = point(position);
     var nearestPoint = nearest(currentPoint, this._unvisitedFeatureCollection);
+    d3.select(".current-location-marker-color-circle").style("background-color", colorMap[nearestPoint.properties.type]);
     var angle = bearing(currentPoint, nearestPoint);
     var distanceToPoint = distance(currentPoint, nearestPoint) * 1000;
     this._currentLocationMarker.options.angle = angle;
@@ -579,7 +596,7 @@ var ExploreMap = React.createClass({
     this._map.addLayer(this._pointsLayer);
   },
 
-  pointsToCollection(points, dull) {
+  pointsToCollection: function(points, dull) {
     return featurecollection(points.map(function(place) {
       return point(place.coords, { type: place.type, dull: dull });
     }).toJS());
@@ -593,18 +610,6 @@ var ExploreMap = React.createClass({
       </div>
     );
   }
-
-// function clickedMap(event) {
-//   visitedCoords = visitedCoords.push(latlngToCoord(event.latlng));
-//   var results = getVisitedPlaces(visitedCoords, pointsOfInterest);
-//   visitedPlaces = results.visitedPlaces;
-//   unvisitedPlaces = results.unvisitedPlaces;
-//   console.log(visitedPlaces.size, unvisitedPlaces.size);
-//   console.log(JSON.stringify(visitedCoords.toJSON()));
-// }
-// function latlngToCoord(latlng) {
-//   return [latlng.lng, latlng.lat];
-// }
 
 });
 

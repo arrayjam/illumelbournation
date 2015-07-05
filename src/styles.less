@@ -8,7 +8,7 @@ html, body, #app {
 
 body {
   width: 375px;
-  height: 700px;
+  height: 570px;
   overflow: auto;
   font-family: 'Lato', sans-serif;
 }
@@ -24,7 +24,7 @@ body {
   left: 40px;
   right: 40px;
   z-index: 100;
-  top: 160px;
+  top: 80px;
   border-radius: 10px;
   background: white;
   text-align: center;
@@ -32,12 +32,24 @@ body {
     height: 250px;
     border-top-left-radius: 10px;
     border-top-right-radius: 10px;
+    background: linear-gradient(rgba(0, 0, 0, 0.15), rgba(0, 0, 0, 0.15)), url("/img/melbourne.jpg");
+    background-size: cover;
   }
 
   .found-place-popup-content {
     padding: 20px;
-    color: #1d1d26;
-    font-size: 15px;
+    .found-place-popup-category {
+      color: #a8a8a8;
+      text-transform: uppercase;
+      font-size: 11px;
+      margin-bottom: 10px;
+    }
+
+    .found-place-popup-text {
+      // color: #1d1d26;
+      // text-transform: uppercase;
+      // font-size: 11px;
+    }
   }
 
   .found-place-popup-button {
@@ -62,7 +74,7 @@ body {
 .pouch {
   .pouch-header {
     height: 200px;
-    background: linear-gradient(rgba(0, 0, 0, 0.15), rgba(0, 0, 0, 0.15)), url("/img/pouch-header.png");
+    background: linear-gradient(rgba(0, 0, 0, 0.15), rgba(0, 0, 0, 0.15)), url("/img/melbourne.jpg");
     background-size: cover;
     color: white;
 
@@ -105,6 +117,14 @@ body {
     font-size: 30px;
     line-height: 70px;
     color: white;
+    transition: background-color 0.25s;
+    img {
+      height: 24px;
+      pointer-events: none;
+    }
+    &:hover {
+      background-color: #694db2;
+    }
   }
 
   .pouch-dates {
@@ -122,9 +142,9 @@ body {
       padding: 20px 30px 20px 75px;
       border-bottom: 1px solid #e8e8e9;
       border-right: 1px solid #e8e8e9;
+      cursor: pointer;
 
       &:hover {
-        cursor: pointer;
         background-color: black;
         border-left-width: none;
         .pouch-item-name,
@@ -321,7 +341,7 @@ body {
       background-size: 86px 86px;
       width: 86px;
       height: 86px;
-      .current-location-marker-circle {
+      .current-location-marker-outer-circle {
         width: 68px;
         height: 68px;
         background: white;
@@ -329,13 +349,34 @@ body {
         left: 9px;
         top: 9px;
         position: relative;
+
+        .current-location-marker-color-circle {
+          width: 58px;
+          height: 58px;
+          background: red;
+          border-radius: 999em;
+          left: 5px;
+          top: 5px;
+          position: relative;
+          .current-location-marker-inner-circle {
+            width: 48px;
+            height: 48px;
+            background: white;
+            border-radius: 999em;
+            left: 5px;
+            top: 5px;
+            position: relative;
+          }
+        }
+
       }
 
       .current-location-marker-distance {
-        color: black;
         position: absolute;
-        top: 30px;
+        top: 33px;
         font-size: 14px;
+        font-weight: bold;
+        color: #545454;
         width: 100%;
         text-align: center;
       }

@@ -19,6 +19,7 @@
     "reactify": "^1.1.1",
     "remarkable": "^1.6.0",
     "turf-bearing": "^1.0.1",
+    "turf-destination": "^1.2.1",
     "turf-distance": "^1.0.1",
     "turf-featurecollection": "^1.0.1",
     "turf-nearest": "^1.0.2",
