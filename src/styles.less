@@ -19,6 +19,46 @@ body {
   position: relative;
 }
 
+.found-place-popup {
+  position: absolute;
+  left: 40px;
+  right: 40px;
+  z-index: 100;
+  top: 160px;
+  border-radius: 10px;
+  background: white;
+  text-align: center;
+  .found-place-popup-header {
+    height: 250px;
+    border-top-left-radius: 10px;
+    border-top-right-radius: 10px;
+  }
+
+  .found-place-popup-content {
+    padding: 20px;
+    color: #1d1d26;
+    font-size: 15px;
+  }
+
+  .found-place-popup-button {
+    display: inline-block;
+    width: 50%;
+    color: white;
+    font-size: 14px;
+    padding: 20px;
+    cursor: pointer;
+
+    &.found-place-popup-button-done {
+      background-color: #967dd9;
+      border-bottom-right-radius: 10px;
+    }
+
+    &.found-place-popup-button-pouch {
+      border-bottom-left-radius: 10px;
+    }
+  }
+}
+
 .pouch {
   .pouch-header {
     height: 200px;
@@ -341,6 +381,10 @@ body {
       .pouch-filter-item-checkbox {
         color: @color;
       }
+    }
+
+    .found-place-popup-button-pouch {
+      background-color: @color;
     }
   }
 }

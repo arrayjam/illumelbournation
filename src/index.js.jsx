@@ -71,8 +71,9 @@ function createNonOverlappingCircles(origin, angles) {
   return circles;
 }
 
-function getVisitedPlaces(visited, places, filter) {
+function getVisitedPlaces(visited, places, filter, includeNewPlaces) {
   var visitedPlaces = Immutable.List();
+  var newlyFoundPlaces = Immutable.List();
 
   for(var placeIndex = 0; placeIndex < places.size; placeIndex++) {
     for(var visitedIndex = 0; visitedIndex < visited.size; visitedIndex++) {
@@ -80,6 +81,9 @@ function getVisitedPlaces(visited, places, filter) {
       var visitedPoint = visited.get(visitedIndex);
       var distance = 6373 * d3.geo.distance(visitedPoint, place.coords);
       if(distance < thresholdDistance) {
+        if(includeNewPlaces && visitedIndex === visited.size - 1) {
+          newlyFoundPlaces = newlyFoundPlaces.push(place);
+        }
         visitedPlaces = visitedPlaces.push(place);
         break;
       }
@@ -102,6 +106,10 @@ function getVisitedPlaces(visited, places, filter) {
     unvisitedPlaces: unvisitedPlaces.filter(function(place) {
       return filter.get(place.type).enabled;
     }),
+
+    newlyFoundPlaces: newlyFoundPlaces.filter(function(place) {
+      return filter.get(place.type).enabled;
+    }),
   };
 }
 
@@ -122,6 +130,7 @@ var App = React.createClass({
       visitedCoords: Immutable.List([[144.9667, -37.8129]]),
       pointsOfInterest: Immutable.List(),
       filter: Immutable.Map(),
+      includeNewPlaces: true,
       selectedPouchIndex: null
     };
   },
@@ -204,7 +213,8 @@ var App = React.createClass({
 
   handleNewPoint: function(point) {
     this.setState({
-      visitedCoords: this.state.visitedCoords.push(point)
+      visitedCoords: this.state.visitedCoords.push(point),
+      includeNewPlaces: true
     });
   },
 
@@ -214,20 +224,36 @@ var App = React.createClass({
     }.bind(this));
   },
 
+  clearNewPlaces: function() {
+    this.setState({ includeNewPlaces: false });
+  },
+
   render: function() {
-    var placeBundle = getVisitedPlaces(this.state.visitedCoords, this.state.pointsOfInterest, this.state.filter);
+    var placeBundle = getVisitedPlaces(this.state.visitedCoords, this.state.pointsOfInterest, this.state.filter, this.state.includeNewPlaces);
     switch(this.state.screen) {
       case this.states.WELCOME: return (
         <Welcome onMapScreen={this.switchToMapScreen} />
       );
       case this.states.MAP: return (
-        <ExploreMap
-          initialPosition={this.state.visitedCoords.last()}
-          onNewPoint={this.handleNewPoint}
-          pointsOfInterest={this.filteredPointsOfInterest()}
-          unvisitedPlaces={placeBundle.unvisitedPlaces}
-          visitedPlaces={placeBundle.visitedPlaces}
-          onPouchScreen={this.switchToPouchScreen} />
+        <div className="page">
+          {
+            placeBundle.newlyFoundPlaces.map(function(place, placeIndex) {
+              return (
+                <FoundPlacePopup key={placeIndex}
+                  place={place}
+                  onClearNewPlaces={this.clearNewPlaces}
+                  onPouchScreen={this.switchToPouchScreen} />
+                );
+            }.bind(this))
+          }
+          <ExploreMap
+            initialPosition={this.state.visitedCoords.last()}
+            onNewPoint={this.handleNewPoint}
+            pointsOfInterest={this.filteredPointsOfInterest()}
+            unvisitedPlaces={placeBundle.unvisitedPlaces}
+            visitedPlaces={placeBundle.visitedPlaces}
+            onPouchScreen={this.switchToPouchScreen} />
+        </div>
       );
       case this.states.POUCH: return (
         <Pouch
@@ -254,6 +280,24 @@ var App = React.createClass({
       case this.states.LOADING: return null;
       default: return null;
     }
+  }
+});
+
+
+var FoundPlacePopup = React.createClass({
+  render: function() {
+    var place = this.props.place;
+    var foundPlacePopupClassname = classNames("found-place-popup", place.type);
+    return (
+      <div className={foundPlacePopupClassname}>
+        <div className="found-place-popup-header"></div>
+        <div className="found-place-popup-content">{place.category} discovered!</div>
+        <div className="found-place-popup-buttons">
+          <div className="found-place-popup-button found-place-popup-button-pouch" onClick={this.props.onPouchScreen}>See pouch</div>
+          <div className="found-place-popup-button found-place-popup-button-done" onClick={this.props.onClearNewPlaces}>Done</div>
+        </div>
+      </div>
+    );
   }
 });
 
