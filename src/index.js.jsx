@@ -309,7 +309,7 @@ var Welcome = React.createClass({
   render: function() {
     return (
       <div className="page welcome">
-        <img className="welcome-image" src="../img/welcome.png" />
+        <img className="welcome-image" src="img/welcome.png" />
         <div className="welcome-text">Start walking to illuminate<br />parts of Melbourne.</div>
         <div className="welcome-start" onClick={this.props.onMapScreen}>Got it!</div>
       </div>
@@ -328,7 +328,7 @@ var PouchDetail = React.createClass({
     return (
       <div className="page pouch pouch-detail">
         <div className={pouchHeaderClassname}>
-          <img src="../img/check.png" className="pouch-header-back" onClick={this.props.onPouchScreen} />
+          <img src="img/check.png" className="pouch-header-back" onClick={this.props.onPouchScreen} />
           <div className="pouch-header-content pouch-detail-header-content">
           </div>
         </div>
@@ -367,7 +367,7 @@ var PouchFilter = React.createClass({
     return (
       <div className="page pouch pouch-filter">
         <div className="pouch-header pouch-filter-header">
-          <img src="../img/check.png" className="pouch-header-back" onClick={this.props.onPouchScreen} />
+          <img src="img/check.png" className="pouch-header-back" onClick={this.props.onPouchScreen} />
           <div className="pouch-header-content pouch-filter-header-content">
             <div className="pouch-header-title pouch-filter-header-title">Filter by interest</div>
           </div>
@@ -399,13 +399,13 @@ var Pouch = React.createClass({
     return (
       <div className="page pouch">
         <div className="pouch-header">
-          <img className="map-icon" src="../img/close.png" onClick={this.props.onMapScreen} />
+          <img className="map-icon" src="img/close.png" onClick={this.props.onMapScreen} />
           <div className="pouch-header-content">
             <div className="pouch-header-title">Your pouch</div>
             <div className="pouch-header-count"><strong>{this.props.visitedPlaces.size}</strong> of <strong>{this.props.filteredPointsOfInterest.size}</strong> bits of Melbourne discovered</div>
           </div>
         </div>
-        <div className="pouch-filter-button" onClick={this.props.onFilterScreen}><img src="../img/filter.png" /></div>
+        <div className="pouch-filter-button" onClick={this.props.onFilterScreen}><img src="img/filter.png" /></div>
         <div className="pouch-dates">
           <div className="pouch-date">TODAY</div>
           <div className="pouch-items">{placesJSX}</div>
@@ -605,7 +605,7 @@ var ExploreMap = React.createClass({
   render: function() {
     return (
       <div className="page map-screen">
-        <img className="pouch-icon" src="../img/pouch-icon.png" onClick={this.props.onPouchScreen} />
+        <img className="pouch-icon" src="img/pouch-icon.png" onClick={this.props.onPouchScreen} />
         <div className="map-container" ref="map"/>
       </div>
     );
