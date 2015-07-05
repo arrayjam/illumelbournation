@@ -137,10 +137,10 @@ var App = React.createClass({
   },
 
   componentDidMount: function() {
-    d3.csv("../data/datasets.csv", function(err, files) {
+    d3.csv("data/datasets.csv", function(err, files) {
       var q = queue(1);
       files.forEach(function(file) {
-        q.defer(d3.csv, "../data/" + file.file_name + ".csv");
+        q.defer(d3.csv, "data/" + file.file_name + ".csv");
       });
 
       q.awaitAll(function(err, placeSetDetails) {
